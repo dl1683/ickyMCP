@@ -1,0 +1,58 @@
+# Databases
+*.db
+*.db-journal
+data/
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Virtual environments
+venv/
+ENV/
+env/
+.venv/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Test outputs
+test_results.txt
+test_additional_results.txt
+TEST_REPORT.md
+
+# Temp files
+nul
+*.tmp
+*.temp
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Docs folder (contains user documents - don't commit)
+docs/
+
+# Keep test files but not their outputs
+!tests/

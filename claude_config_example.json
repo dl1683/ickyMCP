@@ -1,0 +1,14 @@
+{
+  "mcpServers": {
+    "ickyMCP": {
+      "command": "python",
+      "args": ["C:\\Users\\devan\\OneDrive\\Desktop\\Projects\\ickyMCP\\run.py"],
+      "env": {
+        "ICKY_CHUNK_SIZE": "4000",
+        "ICKY_CHUNK_OVERLAP": "500",
+        "ICKY_DB_PATH": "C:\\Users\\devan\\OneDrive\\Desktop\\Projects\\ickyMCP\\icky.db",
+        "ICKY_EMBEDDING_MODEL": "nomic-ai/nomic-embed-text-v1.5"
+      }
+    }
+  }
+}
