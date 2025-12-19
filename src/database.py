@@ -2,6 +2,7 @@
 
 import sqlite3
 import json
+import logging
 from datetime import datetime
 from pathlib import Path
 from typing import Optional
@@ -10,6 +11,8 @@ import sqlite_vec
 
 from .config import DB_PATH, EMBEDDING_DIMENSIONS
 
+logger = logging.getLogger("ickyMCP")
+
 
 class VectorDatabase:
     """Vector database using SQLite + sqlite-vec."""
@@ -17,9 +20,15 @@ class VectorDatabase:
     def __init__(self, db_path: Path = DB_PATH):
         self.db_path = db_path
         self.conn: Optional[sqlite3.Connection] = None
+        self.dimensions = EMBEDDING_DIMENSIONS
 
     def connect(self) -> None:
-        """Initialize database connection and schema."""
+        """Initialize database connection and schema.
+
+        Handles dimension mismatch by recreating the database if needed.
+        """
+        db_exists = self.db_path.exists()
+
         self.conn = sqlite3.connect(str(self.db_path))
         self.conn.row_factory = sqlite3.Row
 
@@ -28,7 +37,64 @@ class VectorDatabase:
         sqlite_vec.load(self.conn)
         self.conn.enable_load_extension(False)
 
+        # Check for dimension mismatch if DB exists
+        if db_exists:
+            if not self._check_dimensions():
+                logger.warning(
+                    f"Embedding dimension mismatch detected. "
+                    f"Expected {EMBEDDING_DIMENSIONS}, recreating database."
+                )
+                self._recreate_database()
+
         self._create_schema()
+
+    def _check_dimensions(self) -> bool:
+        """Check if the database embedding dimensions match the current config."""
+        try:
+            # Check if chunk_embeddings table exists
+            cursor = self.conn.execute(
+                "SELECT name FROM sqlite_master WHERE type='table' AND name='chunk_embeddings'"
+            )
+            if not cursor.fetchone():
+                return True  # No embeddings table yet, OK to create
+
+            # Check dimensions by looking at table info
+            # sqlite-vec stores dimension info in the virtual table definition
+            cursor = self.conn.execute(
+                "SELECT sql FROM sqlite_master WHERE type='table' AND name='chunk_embeddings'"
+            )
+            row = cursor.fetchone()
+            if row and row[0]:
+                sql = row[0]
+                # Parse FLOAT[dimensions] from the SQL
+                import re
+                match = re.search(r'FLOAT\[(\d+)\]', sql)
+                if match:
+                    db_dimensions = int(match.group(1))
+                    return db_dimensions == EMBEDDING_DIMENSIONS
+
+            return True  # Can't determine, assume OK
+        except Exception as e:
+            logger.warning(f"Error checking dimensions: {e}")
+            return True  # Assume OK on error
+
+    def _recreate_database(self) -> None:
+        """Recreate the database with correct dimensions."""
+        self.conn.close()
+
+        # Backup old database
+        backup_path = self.db_path.with_suffix('.db.bak')
+        if backup_path.exists():
+            backup_path.unlink()
+        self.db_path.rename(backup_path)
+        logger.info(f"Old database backed up to {backup_path}")
+
+        # Reconnect to fresh database
+        self.conn = sqlite3.connect(str(self.db_path))
+        self.conn.row_factory = sqlite3.Row
+        self.conn.enable_load_extension(True)
+        sqlite_vec.load(self.conn)
+        self.conn.enable_load_extension(False)
 
     def _create_schema(self) -> None:
         """Create database tables if they don't exist."""

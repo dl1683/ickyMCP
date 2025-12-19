@@ -61,7 +61,10 @@ def parse_pdf(path: Path) -> ParsedDocument:
 
 
 def parse_word(path: Path) -> ParsedDocument:
-    """Parse Word document (.docx) using python-docx."""
+    """Parse Word document (.docx) using python-docx.
+
+    Adds estimated page markers based on character count (~3000 chars per page).
+    """
     from docx import Document
 
     doc = Document(str(path))
@@ -78,11 +81,42 @@ def parse_word(path: Path) -> ParsedDocument:
             if row_text:
                 paragraphs.append(row_text)
 
+    # Join paragraphs
+    full_text = "\n\n".join(paragraphs)
+
+    # Estimate page count and add page markers (~3000 chars per page)
+    CHARS_PER_PAGE = 3000
+    total_chars = len(full_text)
+    estimated_pages = max(1, (total_chars + CHARS_PER_PAGE - 1) // CHARS_PER_PAGE)
+
+    # Add page markers at appropriate positions
+    if total_chars > CHARS_PER_PAGE:
+        marked_text = []
+        current_page = 1
+        current_pos = 0
+
+        marked_text.append(f"[PAGE {current_page}]")
+
+        for para in paragraphs:
+            marked_text.append(para)
+            current_pos += len(para) + 2  # +2 for \n\n
+
+            # Check if we've crossed a page boundary
+            expected_page = (current_pos // CHARS_PER_PAGE) + 1
+            if expected_page > current_page and expected_page <= estimated_pages:
+                current_page = expected_page
+                marked_text.append(f"\n[PAGE {current_page}]")
+
+        full_text = "\n\n".join(marked_text)
+    else:
+        # Small doc - just add single page marker
+        full_text = f"[PAGE 1]\n{full_text}"
+
     return ParsedDocument(
-        text="\n\n".join(paragraphs),
-        page_count=1,  # docx doesn't have reliable page count without rendering
+        text=full_text,
+        page_count=estimated_pages,
         file_type="word",
-        metadata={}
+        metadata={"estimated_pages": True}
     )
 
 
