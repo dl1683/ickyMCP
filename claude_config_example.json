@@ -5,6 +5,7 @@
       "args": ["C:\\Users\\devan\\OneDrive\\Desktop\\Projects\\ickyMCP\\run.py"],
       "env": {
         "ICKY_EMBEDDING_PROVIDER": "voyage",
+        "ICKY_VOYAGE_API_KEY": "YOUR_VOYAGE_API_KEY",
         "ICKY_CHUNK_SIZE": "4000",
         "ICKY_CHUNK_OVERLAP": "500"
       }

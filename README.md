@@ -1,131 +1,88 @@
 # ickyMCP
 
-RAG MCP Server for Document Search. Built for legal professionals and business users who need to search across large document collections.
+RAG MCP server for semantic document search. It indexes local document collections into SQLite with `sqlite-vec`, then exposes MCP tools for indexing, searching, refreshing, listing, and deleting indexed documents.
 
 ## Features
 
-- **Semantic Search**: Find relevant content based on meaning, not just keywords
-- **Document Support**: PDF, Word (.docx), PowerPoint (.pptx), Excel (.xlsx), Markdown, Text
-- **4K Token Chunks**: Large chunks preserve context for legal and business documents
-- **Incremental Indexing**: Only re-index changed files
-- **Local Embeddings**: Uses nomic-embed-text-v1.5 (no API costs)
-- **SQLite Storage**: Single portable database file
+- Semantic search over PDF, Word, PowerPoint, Excel, Markdown, and text files
+- Per-user database isolation with optional legacy single-database mode
+- Document ID filters for chat or matter-scoped retrieval
+- Incremental indexing based on file size and modified time
+- Voyage AI embeddings by default, with an offline local sentence-transformers backend
+- Portable SQLite storage with ignored local database artifacts
 
-## Installation
+## Setup
 
 ```bash
-# Clone or copy the project
-cd ickyMCP
-
-# Create virtual environment
-python -m venv venv
-source venv/bin/activate  # or `venv\Scripts\activate` on Windows
-
-# Install dependencies
+python -m venv .venv
+.\.venv\Scripts\activate
 pip install -r requirements.txt
-
-# Or install as package
-pip install -e .
 ```
+
+Create local environment settings from the example:
+
+```bash
+copy .env.example .env
+```
+
+Set `ICKY_VOYAGE_API_KEY` when using the default Voyage backend. For offline use, set `ICKY_EMBEDDING_PROVIDER=local`.
 
 ## Configuration
 
-### Environment Variables
-
 | Variable | Default | Description |
-|----------|---------|-------------|
-| `ICKY_CHUNK_SIZE` | 4000 | Tokens per chunk |
-| `ICKY_CHUNK_OVERLAP` | 500 | Overlap between chunks |
-| `ICKY_DB_PATH` | `./icky.db` | Path to SQLite database |
-| `ICKY_EMBEDDING_MODEL` | `nomic-ai/nomic-embed-text-v1.5` | Embedding model |
+| --- | --- | --- |
+| `ICKY_EMBEDDING_PROVIDER` | `voyage` | `voyage` or `local` |
+| `ICKY_VOYAGE_API_KEY` | unset | Required when using Voyage embeddings |
+| `ICKY_VOYAGE_MODEL` | `voyage-3.5-lite` | Voyage embedding model |
+| `ICKY_VOYAGE_DIMENSIONS` | `1024` | Voyage output dimension |
+| `ICKY_VOYAGE_WORKERS` | `8` | Reserved for parallel Voyage workflows |
+| `ICKY_LOCAL_MODEL` | `nomic-ai/nomic-embed-text-v1.5` | Local sentence-transformers model |
+| `ICKY_CHUNK_SIZE` | `5000` | Approximate tokens per chunk |
+| `ICKY_CHUNK_OVERLAP` | `500` | Approximate token overlap between chunks |
+| `ICKY_DATA_DIR` | `./data` | Base directory for per-user databases |
+| `ICKY_DB_PATH` | provider-specific | Legacy single database path |
 
-### Claude Code Configuration
-
-Add to your `claude_desktop_config.json` or MCP settings:
+## Claude MCP Configuration
 
 ```json
 {
   "mcpServers": {
     "ickyMCP": {
       "command": "python",
-      "args": ["/path/to/ickyMCP/run.py"],
+      "args": ["C:\\Users\\devan\\OneDrive\\Desktop\\Projects\\ickyMCP\\run.py"],
       "env": {
-        "ICKY_CHUNK_SIZE": "4000",
-        "ICKY_CHUNK_OVERLAP": "500",
-        "ICKY_DB_PATH": "/path/to/icky.db"
+        "ICKY_EMBEDDING_PROVIDER": "voyage",
+        "ICKY_VOYAGE_API_KEY": "YOUR_VOYAGE_API_KEY",
+        "ICKY_CHUNK_SIZE": "5000",
+        "ICKY_CHUNK_OVERLAP": "500"
       }
     }
   }
 }
 ```
 
-## Usage
+## Tools
 
-### Tools Available
+- `index`: index a file or directory; accepts `user_id`, `patterns`, `exclude`, and `force`
+- `search`: semantic query over indexed chunks; accepts `document_ids`, `path_filter`, and `file_types`
+- `similar`: find chunks similar to supplied text
+- `refresh`: re-index changed files and remove deleted files from the index
+- `list`: list indexed documents and their IDs
+- `delete`: delete by path, document IDs, or all documents
+- `status`: return database, embedding, and chunking status
 
-#### `index`
-Index documents from a file or directory.
+## Verification
 
-```
-index(path="/contracts/2024", patterns=["*.pdf", "*.docx"])
-```
-
-#### `search`
-Semantic search across indexed documents.
-
-```
-search(query="indemnification clause", top_k=10, file_types=["pdf"])
-```
-
-#### `similar`
-Find chunks similar to a given text.
-
-```
-similar(chunk_text="The parties agree to...", top_k=5)
+```bash
+python -m compileall -q src run.py fast_index.py
+python -c "from src.config import EMBEDDING_PROVIDER; print(EMBEDDING_PROVIDER)"
 ```
 
-#### `refresh`
-Re-index only files that have changed.
+The root `test_*.py` files are integration scripts that expect local documents under `docs/` and, for the default backend, a configured Voyage API key.
 
-```
-refresh(path="/contracts")
-```
+## Data Hygiene
 
-#### `list`
-List all indexed documents.
-
-```
-list(path_filter="/contracts")
-```
-
-#### `delete`
-Remove documents from the index.
-
-```
-delete(path="/contracts/old")
-delete(all=true)  # Clear entire index
-```
-
-#### `status`
-Get server status and statistics.
-
-```
-status()
-```
-
-## How It Works
-
-1. **Indexing**: Documents are parsed, split into 4K token chunks with 500 token overlap
-2. **Embedding**: Each chunk is embedded using nomic-embed-text-v1.5 (768 dimensions)
-3. **Storage**: Embeddings stored in SQLite with sqlite-vec for fast vector search
-4. **Search**: Query is embedded, compared against all chunks using cosine similarity
-5. **Results**: Top-K most similar chunks returned with full text and metadata
-
-## System Requirements
-
-- Python 3.10+
-- 4GB RAM (2GB for model + headroom)
-- ~1GB disk space (model + database)
+Generated databases and local document folders are ignored by git: `*.db`, `*.db.bak`, `*.sqlite`, `*.sqlite3`, `data/`, and `docs/`. Keep real API keys in environment variables or `.env`, not in tracked files.
 
 ## License
 

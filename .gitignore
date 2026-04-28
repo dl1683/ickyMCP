@@ -1,5 +1,8 @@
 # Databases
 *.db
+*.db.bak
+*.sqlite
+*.sqlite3
 *.db-journal
 data/
 
@@ -24,6 +27,11 @@ wheels/
 *.egg-info/
 .installed.cfg
 *.egg
+
+# Local environment
+.env
+.env.*
+!.env.example
 
 # Virtual environments
 venv/

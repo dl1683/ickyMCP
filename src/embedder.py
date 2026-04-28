@@ -1,7 +1,6 @@
 """Embedding generation supporting both local models and Voyage AI API."""
 
 import requests
-from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import Optional
 import time
 
@@ -26,12 +25,19 @@ class VoyageEmbedder:
 
     def __init__(
         self,
-        api_key: str = VOYAGE_API_KEY,
+        api_key: Optional[str] = VOYAGE_API_KEY,
         model: str = VOYAGE_MODEL,
         dimensions: int = VOYAGE_DIMENSIONS,
         max_workers: int = VOYAGE_MAX_WORKERS,
         max_batch: int = VOYAGE_MAX_BATCH,
     ):
+        if not api_key:
+            raise ValueError(
+                "ICKY_VOYAGE_API_KEY is required when "
+                "ICKY_EMBEDDING_PROVIDER=voyage. Set ICKY_EMBEDDING_PROVIDER=local "
+                "to use the local sentence-transformers backend."
+            )
+
         self.api_key = api_key
         self.model = model
         self._dimensions = dimensions
@@ -100,7 +106,7 @@ class VoyageEmbedder:
     ) -> list[list[float]]:
         """Embed a batch with adaptive sizing - reduces batch size on failure.
 
-        Fallback sequence: 100 → 50 → 32 → 16 → 8 → 4 → 2 → 1
+        Fallback sequence: 100 -> 50 -> 32 -> 16 -> 8 -> 4 -> 2 -> 1
         """
         if current_size is None:
             current_size = len(texts)

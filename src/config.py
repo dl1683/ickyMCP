@@ -3,19 +3,29 @@
 import os
 from pathlib import Path
 
+try:
+    from dotenv import load_dotenv
+except ImportError:
+    load_dotenv = None
+
+if load_dotenv:
+    load_dotenv()
+
 # Chunking settings
 CHUNK_SIZE = int(os.getenv("ICKY_CHUNK_SIZE", "5000"))
 CHUNK_OVERLAP = int(os.getenv("ICKY_CHUNK_OVERLAP", "500"))
 
 # Embedding provider: "local" or "voyage"
-EMBEDDING_PROVIDER = os.getenv("ICKY_EMBEDDING_PROVIDER", "voyage")
+EMBEDDING_PROVIDER = os.getenv("ICKY_EMBEDDING_PROVIDER", "voyage").strip().lower()
+if EMBEDDING_PROVIDER not in {"local", "voyage"}:
+    raise ValueError("ICKY_EMBEDDING_PROVIDER must be 'local' or 'voyage'")
 
 # Local embedding model (sentence-transformers)
 LOCAL_EMBEDDING_MODEL = os.getenv("ICKY_LOCAL_MODEL", "nomic-ai/nomic-embed-text-v1.5")
 LOCAL_EMBEDDING_DIMENSIONS = 768
 
 # Voyage AI settings
-VOYAGE_API_KEY = os.getenv("ICKY_VOYAGE_API_KEY", "pa-YRGTaoUoqv9rgCElaL7RAg0T8FdfIaOpLNCpLZ75fWP")
+VOYAGE_API_KEY = os.getenv("ICKY_VOYAGE_API_KEY")
 VOYAGE_MODEL = os.getenv("ICKY_VOYAGE_MODEL", "voyage-3.5-lite")
 VOYAGE_DIMENSIONS = int(os.getenv("ICKY_VOYAGE_DIMENSIONS", "1024"))
 VOYAGE_MAX_BATCH = 100  # Texts per API call (starts high for speed, adaptive fallback on failure)

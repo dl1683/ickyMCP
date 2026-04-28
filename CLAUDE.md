@@ -21,15 +21,18 @@ python run.py
 python fast_index.py <target_dir> --workers 8 --batch 64 --patterns "*.pdf" "*.docx"
 
 # Run tests
-pytest
-pytest tests/test_specific.py -k "test_name"
+python -m compileall -q src run.py fast_index.py
+
+# Integration scripts expect local docs/ data and, for Voyage, ICKY_VOYAGE_API_KEY
+python test_multitenant.py
+python test_recursive_index.py
 ```
 
 ## Architecture
 
 ### Data Flow
 1. **Parsing** (`src/parsers.py`): Documents (PDF, DOCX, PPTX, XLSX, TXT, MD) are parsed to extract text
-2. **Chunking** (`src/chunker.py`): Text is split into 4K token chunks with 500 token overlap using tiktoken
+2. **Chunking** (`src/chunker.py`): Text is split into approximate token chunks using a character heuristic
 3. **Embedding** (`src/embedder.py`): Chunks are embedded using either local model (nomic-embed-text-v1.5) or Voyage AI API
 4. **Storage** (`src/database.py`): Embeddings stored in SQLite with sqlite-vec extension for vector similarity search
 5. **Search**: Query is embedded and compared using cosine similarity
@@ -39,7 +42,7 @@ pytest tests/test_specific.py -k "test_name"
 - **`src/server.py`**: MCP server entry point. Exposes 7 tools: `index`, `search`, `similar`, `refresh`, `list`, `delete`, `status`
 - **`src/embedder.py`**: Dual embedding support - `LocalEmbedder` (sentence-transformers) and `VoyageEmbedder` (API). Selected via `EMBEDDING_PROVIDER` env var
 - **`src/database.py`**: `VectorDatabase` class wraps SQLite + sqlite-vec. Three tables: `documents`, `chunks`, `chunk_embeddings` (virtual table)
-- **`src/chunker.py`**: `TextChunker` uses tiktoken for accurate token counting. Finds smart break points (paragraph > sentence > word)
+- **`src/chunker.py`**: `TextChunker` uses a character-based token estimate and fixed overlap
 - **`fast_index.py`**: Standalone CLI for bulk indexing with thread-pool parsing and batched embeddings
 
 ### Environment Variables
@@ -50,7 +53,7 @@ pytest tests/test_specific.py -k "test_name"
 | `ICKY_CHUNK_SIZE` | `4000` | Tokens per chunk |
 | `ICKY_CHUNK_OVERLAP` | `500` | Overlap between chunks |
 | `ICKY_DB_PATH` | `./icky_voyage.db` or `./icky.db` | SQLite database path |
-| `ICKY_VOYAGE_API_KEY` | (set in config) | Voyage AI API key |
+| `ICKY_VOYAGE_API_KEY` | unset | Voyage AI API key; required for the Voyage backend |
 | `ICKY_VOYAGE_MODEL` | `voyage-3.5-lite` | Voyage model name |
 | `ICKY_VOYAGE_DIMENSIONS` | `1024` | Voyage embedding dimensions |
 | `ICKY_LOCAL_MODEL` | `nomic-ai/nomic-embed-text-v1.5` | Local model name |
